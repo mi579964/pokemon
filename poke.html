@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>포켓몬 도감& 미니 배틀</title>
+<style>
+  :root {
+    --pokedex-red: #d6334a;
+    --pokedex-red-dark: #b32238;
+    --cream: #fdf6e3;
+    --screen: #2b2b3a;
+    --screen-light: #3c3c52;
+    --text-dark: #2b2b3a;
+    --accent-yellow: #ffd23f;
+    --battle-green: #4caf50;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: 'Trebuchet MS', 'Pretendard', sans-serif;
+    background: linear-gradient(135deg, #ffe9a8 0%, #ffd6c2 50%, #cfe8ff 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .pokedex {
+    width: 100%;
+    max-width: 420px;
+    background: var(--pokedex-red);
+    border-radius: 28px;
+    padding: 18px;
+    box-shadow: 0 14px 0 var(--pokedex-red-dark), 0 20px 30px rgba(0,0,0,0.25);
+    position: relative;
+  }
+
+  .pokedex::before {
+    content: ""; position: absolute; top: 16px; left: 16px; width: 18px; height: 18px;
+    background: #6fc8ff; border-radius: 50%; box-shadow: 0 0 0 3px #fff, 0 0 10px rgba(255,255,255,0.6);
+  }
+
+  .pokedex-top { display: flex; justify-content: flex-end; gap: 8px; padding: 6px 6px 14px; }
+  .pokedex-top span { width: 12px; height: 12px; border-radius: 50%; background: #ffd23f; }
+  .pokedex-top span:nth-child(2) { background: #5cd65c; }
+  .pokedex-top span:nth-child(3) { background: #ff6b6b; }
+
+  .screen {
+    background: var(--screen); border-radius: 16px; padding: 18px; color: #fff;
+    display: flex; flex-direction: column; align-items: center;
+    box-shadow: inset 0 0 0 4px #1c1c28, inset 0 0 20px rgba(0,0,0,0.5);
+  }
+
+  .search-row { display: flex; gap: 8px; width: 100%; margin-bottom: 14px; }
+  .search-row input {
+    flex: 1; padding: 10px 14px; border-radius: 999px; border: none;
+    background: var(--screen-light); color: #fff; font-size: 15px; outline: none;
+  }
+  .search-row input::placeholder { color: #b8b8cc; }
+
+  .search-row button, .nav-row button, .random-btn, .battle-action-btn {
+    border: none; border-radius: 999px; padding: 10px 16px; font-weight: bold;
+    cursor: pointer; font-size: 14px; transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+  .search-row button:hover, .nav-row button:hover, .random-btn:hover, .battle-action-btn:hover { transform: translateY(-2px); }
+  .search-row button:active, .nav-row button:active, .random-btn:active, .battle-action-btn:active { transform: translateY(0); }
+  .search-row button { background: var(--accent-yellow); color: var(--text-dark); }
+  .random-btn { background: #6fc8ff; color: var(--text-dark); margin-bottom: 14px; width: 100%; }
+
+  .card { width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; min-height: 260px; margin-bottom: 14px; }
+  .card.hidden { display: none; }
+  .poke-id { font-size: 13px; color: #9aa0c4; letter-spacing: 1px; }
+  .poke-name { font-size: 24px; font-weight: bold; margin: 4px 0 10px; }
+  .poke-img { width: 140px; height: 140px; object-fit: contain; background: var(--screen-light); border-radius: 12px; padding: 8px; }
+  .types { display: flex; gap: 8px; margin: 12px 0; }
+  .type-badge { padding: 4px 14px; border-radius: 999px; font-size: 12px; font-weight: bold; color: #fff; }
+
+  .meta-row { display: flex; gap: 24px; margin-bottom: 14px; font-size: 13px; color: #d6d6f0; }
+  .meta-row b { display: block; font-size: 16px; color: #fff; }
+  .stats { width: 100%; display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+  .stat-row { display: grid; grid-template-columns: 70px 1fr 36px; align-items: center; gap: 8px; }
+  .stat-bar-bg { background: var(--screen-light); border-radius: 4px; height: 8px; overflow: hidden; }
+  .stat-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent-yellow), #6fc8ff); transition: width 0.6s ease; }
+
+  .set-enemy-btn { background: #ff7b00; color: white; width: 100%; border: none; padding: 10px; font-weight: bold; border-radius: 8px; cursor: pointer; margin-top: 10px; font-size: 13px;}
+
+  .battle-screen { width: 100%; display: none; flex-direction: column; align-items: center; animation: fadeIn 0.3s ease; }
+  .battle-screen.active { display: flex; }
+  .battle-versus { display: flex; justify-content: space-around; width: 100%; align-items: center; margin: 15px 0; }
+  .battle-fighter { display: flex; flex-direction: column; align-items: center; width: 45%; }
+  .battle-fighter img { width: 80px; height: 80px; object-fit: contain; background: var(--screen-light); border-radius: 10px; }
+  .battle-fighter .fighter-name { font-size: 14px; font-weight: bold; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; text-align: center; }
+  
+  .hp-container { width: 100%; background: #555; height: 12px; border-radius: 6px; overflow: hidden; margin-top: 6px; border: 1px solid #1c1c28; }
+  .hp-bar { height: 100%; background: #4caf50; width: 100%; transition: width 0.3s ease, background-color 0.3s; }
+  .vs-text { font-size: 20px; font-weight: bold; color: var(--accent-yellow); font-style: italic; }
+  
+  .battle-log { width: 100%; height: 110px; background: #1c1c28; border-radius: 8px; padding: 8px; font-size: 11px; overflow-y: auto; color: #cbd5e1; display: flex; flex-direction: column; gap: 4px; text-align: left; border: 1px solid var(--screen-light); }
+  .battle-log span { line-height: 1.4; }
+  .log-system { color: var(--accent-yellow); }
+  .log-damage { color: #ff6b6b; }
+  .log-effect { color: #6fc8ff; font-weight: bold; }
+  
+  .battle-controls { display: flex; flex-direction: column; gap: 6px; width: 100%; margin-top: 12px; }
+  .battle-btn-row { display: flex; gap: 4px; width: 100%; }
+  .battle-action-btn { flex: 1; color: var(--text-dark); font-size: 11px; padding: 10px 4px; font-weight: bold; }
+  .btn-attack { background: var(--accent-yellow); }
+  .btn-escape { background: #e2e8f0; }
+
+  .battle-modal {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6); z-index: 100; align-items: center; justify-content: center;
+  }
+  .battle-modal.active { display: flex; }
+  .modal-content {
+    background: var(--screen); border: 3px solid var(--pokedex-red); border-radius: 20px;
+    padding: 20px; width: 320px; text-align: center; color: white; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  }
+  .modal-title { font-size: 16px; font-weight: bold; margin-bottom: 15px; color: var(--accent-yellow); }
+  .modal-btn {
+    width: 100%; padding: 12px; margin: 6px 0; border: none; border-radius: 10px;
+    font-weight: bold; font-size: 14px; cursor: pointer; transition: background 0.2s;
+  }
+  .btn-mode-rand { background: #6fc8ff; color: var(--text-dark); }
+  .btn-mode-select { background: #ff7b00; color: white; }
+  .btn-mode-cancel { background: #555; color: #ccc; margin-top: 12px; }
+
+  .status-msg { color: #d6d6f0; font-size: 14px; padding: 20px 10px; text-align: center; width: 100%; }
+  .nav-row { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 15px; width: 100%; }
+  .nav-row button { background: var(--cream); color: var(--text-dark); flex: 1; }
+  .nav-row button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .filter-tabs { display: flex; gap: 4px; width: 100%; margin-bottom: 8px; border-top: 1px dashed var(--screen-light); padding-top: 12px; }
+  .filter-btn { flex: 1; background: var(--screen-light); border: none; color: #b8b8cc; padding: 6px 0; font-size: 11px; font-weight: bold; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+  .filter-btn.active { background: var(--accent-yellow); color: var(--text-dark); }
+
+  .list-wrapper { width: 100%; position: relative; }
+  .pokemon-list-container { width: 100%; max-height: 150px; overflow-y: auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding-right: 4px; }
+  .pokemon-list-container::-webkit-scrollbar { width: 6px; }
+  .pokemon-list-container::-webkit-scrollbar-thumb { background: var(--screen-light); border-radius: 4px; }
+
+  .list-item { background: var(--screen-light); border-radius: 10px; padding: 6px; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: background 0.2s, transform 0.2s; }
+  .list-item:hover { background: #4e4e6a; transform: scale(1.05); }
+  .list-item.legendary { border: 1px solid #ff7b00; }
+  .list-item.mythical { border: 1px solid #ff007b; }
+  .list-item img { width: 55px; height: 55px; object-fit: contain; }
+  .list-item .item-name { font-size: 11px; margin-top: 4px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+  .list-item .item-id { font-size: 9px; color: #9aa0c4; }
+
+  .list-status-banner {
+    grid-column: span 3; text-align: center; font-size: 11px; padding: 10px 0; color: #9aa0c4; font-weight: bold; letter-spacing: 0.5px; animation: fadeIn 0.2s ease;
+  }
+  .list-status-banner.searching { color: var(--accent-yellow); background: rgba(255, 210, 63, 0.05); border-radius: 8px; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+  .type-normal { background: #A8A878; } .type-fire { background: #F08030; } .type-water { background: #6890F0; } .type-electric { background: #F8D030; color: #2b2b3a; } .type-grass { background: #78C850; } .type-ice { background: #98D8D8; color: #2b2b3a; } .type-fighting { background: #C03028; } .type-poison { background: #A040A0; } .type-ground { background: #E0C068; color: #2b2b3a; } .type-flying { background: #A890F0; } .type-psychic { background: #F85888; } .type-bug { background: #A8B820; } .type-rock { background: #B8A038; } .type-ghost { background: #705898; } .type-dragon { background: #7038F8; } .type-dark { background: #705848; } .type-steel { background: #B8B8D0; color: #2b2b3a; } .type-fairy { background: #EE99AC; color: #2b2b3a; }
+</style>
+</head>
+<body>
+
+<div class="pokedex">
+  <div class="pokedex-top">
+    <span></span><span></span><span></span>
+  </div>
+
+  <div class="screen">
+    <div id="deckMainArea" style="width: 100%;">
+      <div class="search-row">
+        <input type="text" id="searchInput" placeholder="이름/번호 입력 (예: 뮤츠, 피카츄, 25)">
+        <button onclick="searchPokemon()">검색</button>
+      </div>
+
+      <button class="random-btn" onclick="loadRandomPokemon()">랜덤 포켓몬 보기</button>
+
+      <div id="status" class="status-msg"></div>
+
+      <div id="card" class="card hidden">
+        <div class="poke-id" id="pokeId"></div>
+        <div class="poke-name" id="pokeName"></div>
+        <img class="poke-img" id="pokeImg" src="" alt="포켓몬 이미지">
+        <div class="types" id="pokeTypes"></div>
+        <div class="meta-row">
+          <div><b id="pokeHeight"></b>키 (m)</div>
+          <div><b id="pokeWeight"></b>무게 (kg)</div>
+        </div>
+        <div class="stats" id="pokeStats"></div>
+        
+        <button class="set-enemy-btn" onclick="showBattleModal()">⚔️ 이 포켓몬과 배틀하기</button>
+      </div>
+
+      <div class="nav-row">
+        <button id="prevBtn" onclick="changeId(-1)">◀ 이전</button>
+        <button id="nextBtn" onclick="changeId(1)">다음 ▶</button>
+      </div>
+    </div>
+
+    <div id="battleScreen" class="battle-screen">
+      <div class="vs-text" style="font-size:15px; color:#9aa0c4;">POKEMON BATTLE</div>
+      <div class="battle-versus">
+        <div class="battle-fighter">
+          <img id="p1Img" src="" alt="player">
+          <div id="p1Name" class="fighter-name">내 포켓몬</div>
+          <div class="hp-container"><div id="p1HpBar" class="hp-bar"></div></div>
+          <div id="p1HpText" style="font-size:10px; margin-top:2px;">100/100</div>
+        </div>
+        <div class="vs-text">VS</div>
+        <div class="battle-fighter">
+          <img id="p2Img" src="" alt="enemy">
+          <div id="p2Name" class="fighter-name">상대 포켓몬</div>
+          <div class="hp-container"><div id="p2HpBar" class="hp-bar"></div></div>
+          <div id="p2HpText" style="font-size:10px; margin-top:2px;">100/100</div>
+        </div>
+      </div>
+
+      <div id="battleLog" class="battle-log"></div>
+
+      <div class="battle-controls">
+        <div class="battle-btn-row">
+          <button id="attackBtn" class="battle-action-btn btn-attack" onclick="executeBattleTurn()">공격하기</button>
+        </div>
+        <button class="battle-action-btn btn-escape" onclick="quitBattle()">도망치기</button>
+      </div>
+    </div>
+
+    <div class="filter-tabs">
+      <button id="filter-all" class="filter-btn active" onclick="switchFilter('all')">전체 목록</button>
+      <button id="filter-legendary" class="filter-btn" onclick="switchFilter('legendary')">전설급</button>
+      <button id="filter-mythical" class="filter-btn" onclick="switchFilter('mythical')">환상급</button>
+    </div>
+    <div class="list-wrapper">
+      <div class="pokemon-list-container" id="prokemonListContainer"></div>
+    </div>
+  </div>
+</div>
+
+<div id="battleModal" class="battle-modal">
+  <div class="modal-content">
+    <div class="modal-title">⚔️ 배틀 모드 선택</div>
+    <p style="font-size: 12px; color: #cbd5e1; margin-top: -5px; margin-bottom: 15px;" id="modalDesc"></p>
+    <button class="modal-btn btn-mode-rand" onclick="startBattleWithMode('random')">🎲 무작위 포켓몬과 배틀</button>
+    <button class="modal-btn btn-mode-select" onclick="startBattleWithMode('select')">🎯 수동 지정 포켓몬과 배틀</button>
+    <button class="modal-btn btn-mode-cancel" onclick="closeBattleModal()">취소</button>
+  </div>
+</div>
+
+<script>
+  const API_URL = "https://pokeapi.co/api/v2/pokemon/";
+  const SPECIES_URL = "https://pokeapi.co/api/v2/pokemon-species/";
+  const statusEl = document.getElementById("status");
+  const cardEl = document.getElementById("card");
+  const listContainerEl = document.getElementById("prokemonListContainer");
+  const battleModalEl = document.getElementById("battleModal");
+  
+  let currentId = 1;
+  let nextLoadId = 1; 
+  let currentFilter = 'all';
+  let isLoadingList = false;
+  let isListEnded = false; 
+  
+  const LOAD_COUNT = 20; 
+  const MAX_POKEMON = 1010;
+
+  let myPokemonData = null;
+  let activeEnemyData = null;
+  let p1State = { hp: 100, maxHp: 100, speed: 0, attack: 0, types: [] };
+  let p2State = { hp: 100, maxHp: 100, speed: 0, attack: 0, types: [] };
+
+  const statNames = { hp: "HP", attack: "공격", defense: "방어", "special-attack": "특공", "special-defense": "특방", speed: "스피드" };
+  const typeNamesKo = { normal: "노말", fire: "불꽃", water: "물", electric: "전기", grass: "풀", ice: "얼음", fighting: "격투", poison: "독", ground: "땅", flying: "비행", psychic: "에스퍼", bug: "벌레", rock: "바위", ghost: "고스트", dragon: "드래곤", dark: "악", steel: "강철", fairy: "페어리" };
+  
+  const typeChart = {
+    fire: { grass: 2, ice: 2, bug: 2, steel: 2, fire: 0.5, water: 0.5, rock: 0.5, dragon: 0.5 },
+    water: { fire: 2, ground: 2, rock: 2, water: 0.5, grass: 0.5, dragon: 0.5 },
+    grass: { water: 2, ground: 2, rock: 2, fire: 0.5, grass: 0.5, poison: 0.5, flying: 0.5, bug: 0.5, dragon: 0.5, steel: 0.5 },
+    electric: { water: 2, flying: 2, electric: 0.5, grass: 0.5, dragon: 0.5, ground: 0 },
+    normal: { rock: 0.5, steel: 0.5, ghost: 0 },
+    ice: { grass: 2, ground: 2, flying: 2, dragon: 2, fire: 0.5, water: 0.5, ice: 0.5, steel: 0.5 },
+    fighting: { normal: 2, ice: 2, rock: 2, dark: 2, steel: 2, poison: 0.5, flying: 0.5, psychic: 0.5, bug: 0.5, fairy: 0.5, ghost: 0 }
+  };
+
+  const searchDictionary = {};
+
+  function extractBestImage(data) {
+    if (!data) return "";
+    if (data.sprites?.other?.["official-artwork"]?.front_default) {
+      return data.sprites.other["official-artwork"].front_default;
+    }
+    if (data.sprites?.front_default) {
+      return data.sprites.front_default;
+    }
+    if (data.sprites?.other?.home?.front_default) {
+      return data.sprites.other.home.front_default;
+    }
+    return "";
+  }
+
+  async function getSpeciesData(id) {
+    try {
+      const res = await fetch(`${SPECIES_URL}${id}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      const koNameObj = data.names.find(n => n.language.name === "ko");
+      return { name: koNameObj ? koNameObj.name : null, is_legendary: data.is_legendary, is_mythical: data.is_mythical };
+    } catch { return null; }
+  }
+
+  async function findIdByKoreanName(krName) {
+    showStatus(`🔎 도감에서 '${krName}' 찾는 중...`);
+    for (let i = 1; i <= MAX_POKEMON; i++) {
+      try {
+        const res = await fetch(`${SPECIES_URL}${i}`);
+        if (!res.ok) continue;
+        const data = await res.json();
+        const koNameObj = data.names.find(n => n.language.name === "ko");
+        if (koNameObj && koNameObj.name.trim() === krName.trim()) {
+          searchDictionary[krName] = i;
+          return i;
+        }
+      } catch (e) { continue; }
+    }
+    return null;
+  }
+
+  async function fetchPokemon(idOrName) {
+    showStatus("불러오는 중...");
+    cardEl.classList.add("hidden");
+    let target = idOrName.toString().toLowerCase().trim();
+    
+    if (searchDictionary[target]) {
+      target = searchDictionary[target];
+    } else if (isNaN(target)) {
+      const isEnglish = /^[a-zA-Z0-9- ]+$/.test(target);
+      if (!isEnglish) {
+        const foundId = await findIdByKoreanName(idOrName);
+        if (foundId) target = foundId;
+        else {
+          showStatus("포켓몬을 찾을 수 없어요. 이름을 다시 확인해주세요!");
+          return;
+        }
+      }
+    }
+
+    try {
+      const res = await fetch(API_URL + target);
+      if (!res.ok) throw new Error("not found");
+      const data = await res.json();
+
+      const species = await getSpeciesData(data.id);
+      let finalName = species?.name || data.name;
+      searchDictionary[finalName] = data.id;
+
+      myPokemonData = { ...data, koName: finalName };
+
+      let decoName = finalName;
+      if (species?.is_legendary) decoName = "✨ " + finalName;
+      if (species?.is_mythical) decoName = "👑 " + finalName;
+
+      renderPokemon(data, decoName);
+      currentId = data.id;
+      updateNavButtons();
+    } catch (err) {
+      showStatus("포켓몬을 찾을 수 없어요. 이름을 확인해주세요!");
+    }
+  }
+
+  function showStatus(msg) { statusEl.textContent = msg; statusEl.style.display = "block"; }
+  function hideStatus() { statusEl.style.display = "none"; }
+
+  function renderPokemon(data, decoName) {
+    hideStatus(); cardEl.classList.remove("hidden");
+    document.getElementById("pokeId").textContent = "No. " + String(data.id).padStart(4, "0");
+    document.getElementById("pokeName").textContent = decoName;
+    
+    document.getElementById("pokeImg").src = extractBestImage(data);
+    
+    document.getElementById("pokeHeight").textContent = (data.height / 10).toFixed(1);
+    document.getElementById("pokeWeight").textContent = (data.weight / 10).toFixed(1);
+
+    const typesEl = document.getElementById("pokeTypes");
+    typesEl.innerHTML = "";
+    data.types.forEach(t => {
+      const badge = document.createElement("span");
+      badge.className = "type-badge type-" + t.type.name;
+      badge.textContent = typeNamesKo[t.type.name] || t.type.name;
+      typesEl.appendChild(badge);
+    });
+
+    renderStats(data.stats);
+  }
+
+  function renderStats(statsArray) {
+    const statsEl = document.getElementById("pokeStats");
+    statsEl.innerHTML = "";
+    statsArray.forEach(s => {
+      const row = document.createElement("div"); row.className = "stat-row";
+      const label = document.createElement("div"); label.textContent = statNames[s.stat.name] || s.stat.name;
+      const barBg = document.createElement("div"); barBg.className = "stat-bar-bg";
+      const barFill = document.createElement("div"); barFill.className = "stat-bar-fill";
+      barFill.style.width = Math.min(100, (s.base_stat / 255) * 100) + "%";
+      barBg.appendChild(barFill);
+      const value = document.createElement("div"); value.textContent = s.base_stat; value.style.textAlign = "right";
+      row.appendChild(label); row.appendChild(barBg); row.appendChild(value); statsEl.appendChild(row);
+    });
+  }
+
+  async function loadMorePokemon() {
+    if (isLoadingList || isListEnded) return;
+    isLoadingList = true;
+
+    try {
+      let loadedInThisTurn = 0;
+      while (loadedInThisTurn < LOAD_COUNT && nextLoadId <= MAX_POKEMON) {
+        updateListStatus('searching', nextLoadId);
+
+        const batchIds = [];
+        for (let k = 0; k < (LOAD_COUNT - loadedInThisTurn); k++) {
+          const targetId = nextLoadId + k;
+          if (targetId > MAX_POKEMON) break;
+          batchIds.push(targetId);
+        }
+
+        if (batchIds.length === 0) break;
+        nextLoadId += batchIds.length;
+
+        const batchResults = await Promise.all(
+          batchIds.map(async (id) => {
+            try {
+              const species = await getSpeciesData(id);
+              if (!species) return null;
+              if (currentFilter === 'legendary' && !species.is_legendary) return null;
+              if (currentFilter === 'mythical' && !species.is_mythical) return null;
+              const res = await fetch(API_URL + id).then(r => r.json());
+              return { res, species };
+            } catch (err) { return null; }
+          })
+        );
+
+        batchResults.forEach(item => {
+          if (!item) return; 
+          const { res, species } = item;
+          const finalName = species.name || res.name;
+          searchDictionary[finalName] = res.id;
+
+          const cardItem = document.createElement("div");
+          cardItem.className = "list-item";
+          if (species.is_legendary) cardItem.classList.add("legendary");
+          if (species.is_mythical) cardItem.classList.add("mythical");
+
+          cardItem.onclick = () => fetchPokemon(res.id);
+          
+          const imgUrl = extractBestImage(res);
+
+          cardItem.innerHTML = `
+            <span class="item-id">#${String(res.id).padStart(4, "0")}</span>
+            <img src="${imgUrl}" alt="${finalName}">
+            <div class="item-name">${finalName}</div>
+          `;
+          listContainerEl.appendChild(cardItem);
+          loadedInThisTurn++;
+        });
+      }
+
+      if (nextLoadId > MAX_POKEMON) {
+        isListEnded = true;
+        updateListStatus('ended');
+      } else {
+        const oldBanners = listContainerEl.querySelectorAll('.list-status-banner.searching');
+        oldBanners.forEach(b => b.remove());
+      }
+    } catch (globalErr) {
+      console.error(globalErr);
+    } finally {
+      isLoadingList = false;
+    }
+  }
+
+  function updateListStatus(type, currentId) {
+    const oldBanners = listContainerEl.querySelectorAll('.list-status-banner');
+    oldBanners.forEach(b => b.remove());
+    if (type === 'ended') {
+      const banner = document.createElement('div'); banner.className = 'list-status-banner'; banner.textContent = '더 이상 없어요.'; listContainerEl.appendChild(banner);
+    } else if (type === 'searching') {
+      const banner = document.createElement('div'); banner.className = 'list-status-banner searching'; banner.textContent = `⏳ 찾는 중... (${Math.min(MAX_POKEMON, currentId)} / ${MAX_POKEMON})`; listContainerEl.appendChild(banner); listContainerEl.scrollTop = listContainerEl.scrollHeight;
+    }
+  }
+
+  async function switchFilter(filterType) {
+    if (currentFilter === filterType && listContainerEl.children.length > 0) return;
+    currentFilter = filterType;
+    const btns = document.querySelectorAll('.filter-btn');
+    btns.forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.getElementById(`filter-${filterType}`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    listContainerEl.innerHTML = ""; nextLoadId = 1; isListEnded = false; 
+    await loadMorePokemon();
+  }
+
+  listContainerEl.addEventListener("scroll", () => {
+    if (listContainerEl.scrollTop + listContainerEl.clientHeight >= listContainerEl.scrollHeight - 30) { loadMorePokemon(); }
+  });
+
+  function showBattleModal() {
+    if (!myPokemonData) return;
+    document.getElementById("modalDesc").textContent = `내 포켓몬: [ ${myPokemonData.koName} ]`;
+    battleModalEl.classList.add("active");
+  }
+
+  function closeBattleModal() { battleModalEl.classList.remove("active"); }
+
+  function startBattleWithMode(mode) {
+    closeBattleModal();
+    if (mode === 'random') {
+      const randomEnemyId = Math.floor(Math.random() * 300) + 1;
+      showStatus("🎲 야생의 무작위 상대 서칭 중...");
+      fetch(API_URL + randomEnemyId)
+        .then(r => r.json())
+        .then(async (enemyData) => {
+          const species = await getSpeciesData(enemyData.id);
+          activeEnemyData = { ...enemyData, koName: species?.name || enemyData.name };
+          startBattleMode();
+        }).catch(() => showStatus("상대를 찾지 못했습니다."));
+    } else if (mode === 'select') {
+      const targetInput = prompt("상대할 포켓몬의 이름이나 도감 번호를 정확히 입력하세요:\n(예: 피카츄, 뮤츠, 25)");
+      if (!targetInput) return;
+      let target = targetInput.trim().toLowerCase();
+      (async () => {
+        if (searchDictionary[target]) { target = searchDictionary[target]; } 
+        else if (isNaN(target)) {
+          const foundId = await findIdByKoreanName(targetInput);
+          if(foundId) target = foundId;
+          else { showStatus("입력한 포켓몬을 도감에서 찾을 수 없습니다."); return; }
+        }
+        showStatus(`🎯 지정된 상대 불러오는 중...`);
+        fetch(API_URL + target)
+          .then(r => r.json())
+          .then(async (enemyData) => {
+            const species = await getSpeciesData(enemyData.id);
+            activeEnemyData = { ...enemyData, koName: species?.name || enemyData.name };
+            startBattleMode();
+          }).catch(() => showStatus("에러가 발생했습니다."));
+      })();
+    }
+  }
+
+  function startBattleMode() {
+    hideStatus();
+    document.getElementById("deckMainArea").style.display = "none";
+    document.getElementById("battleScreen").classList.add("active");
+
+    const p1Hp = myPokemonData.stats.find(s => s.stat.name === 'hp').base_stat * 2 + 110;
+    const p1Atk = myPokemonData.stats.find(s => s.stat.name === 'attack').base_stat;
+    const p1Spd = myPokemonData.stats.find(s => s.stat.name === 'speed').base_stat;
+
+    const p2Hp = activeEnemyData.stats.find(s => s.stat.name === 'hp').base_stat * 2 + 110;
+    const p2Atk = activeEnemyData.stats.find(s => s.stat.name === 'attack').base_stat;
+    const p2Spd = activeEnemyData.stats.find(s => s.stat.name === 'speed').base_stat;
+
+    p1State = { 
+      id: myPokemonData.id, name: myPokemonData.koName, maxHp: p1Hp, hp: p1Hp, attack: p1Atk, speed: p1Spd, 
+      types: myPokemonData.types.map(t=>t.type.name), img: extractBestImage(myPokemonData)
+    };
+    
+    p2State = { 
+      id: activeEnemyData.id, name: activeEnemyData.koName, maxHp: p2Hp, hp: p2Hp, attack: p2Atk, speed: p2Spd, 
+      types: activeEnemyData.types.map(t=>t.type.name), img: extractBestImage(activeEnemyData)
+    };
+
+    document.getElementById("p1Name").textContent = p1State.name;
+    document.getElementById("p1Img").src = p1State.img;
+    document.getElementById("p2Name").textContent = p2State.name;
+    document.getElementById("p2Img").src = p2State.img;
+
+    updateHpGauges();
+    
+    const logEl = document.getElementById("battleLog");
+    logEl.innerHTML = `<span class="log-system"> 대전 성립! [${p2State.name}](이)가 승부를 걸어왔다!</span>`;
+    
+    document.getElementById("attackBtn").disabled = false;
+  }
+
+  function getMatchupMultiplier(atkTypes, defTypes) {
+    let multiplier = 1;
+    atkTypes.forEach(atk => {
+      defTypes.forEach(def => {
+        if(typeChart[atk] && typeChart[atk][def] !== undefined) { multiplier *= typeChart[atk][def]; }
+      });
+    });
+    return multiplier;
+  }
+
+  function executeBattleTurn() {
+    const logEl = document.getElementById("battleLog");
+    let first = p1State; let second = p2State; let isP1First = true;
+
+    if (p2State.speed > p1State.speed) { first = p2State; second = p1State; isP1First = false; }
+
+    let logHtml = calculateAttackEffect(first, second, isP1First);
+    logEl.innerHTML += logHtml;
+    updateHpGauges();
+
+    if (second.hp <= 0) { endBattle(second === p2State ? "win" : "lose"); return; }
+
+    logHtml = calculateAttackEffect(second, first, !isP1First);
+    logEl.innerHTML += logHtml;
+    updateHpGauges();
+
+    if (first.hp <= 0) { endBattle(first === p1State ? "lose" : "win"); return; }
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function calculateAttackEffect(attacker, defender, isAttackerP1) {
+    const baseDamage = Math.floor((attacker.attack * 0.4) + (Math.random() * 10) + 5);
+    const mult = getMatchupMultiplier(attacker.types, defender.types);
+    const finalDamage = Math.floor(baseDamage * mult);
+
+    defender.hp = Math.max(0, defender.hp - finalDamage);
+
+    let effectMsg = "";
+    if (mult > 1) effectMsg = ` <span class="log-effect">효과가 굉장했다!</span>`;
+    if (mult > 0 && mult < 1) effectMsg = ` <span class="log-system">효과가 별로인 듯하다...</span>`;
+    if (mult === 0) effectMsg = ` <span class="log-system">효과가 전혀 없는 것 같다.</span>`;
+
+    const sideColorClass = isAttackerP1 ? "style='color:#818cf8;'" : "style='color:#fb7185;'";
+    return `<br><span><b ${sideColorClass}>${attacker.name}</b>의 공격! <span class="log-damage">${finalDamage}</span>의 피해!${effectMsg}</span>`;
+  }
+
+  function updateHpGauges() {
+    const p1Pct = (p1State.hp / p1State.maxHp) * 100;
+    const p2Pct = (p2State.hp / p2State.maxHp) * 100;
+    const p1Bar = document.getElementById("p1HpBar");
+    const p2Bar = document.getElementById("p2HpBar");
+
+    p1Bar.style.width = p1Pct + "%";
+    p2Bar.style.width = p2Pct + "%";
+    p1Bar.style.backgroundColor = p1Pct < 30 ? "#ef4444" : p1Pct < 60 ? "#f59e0b" : "#4caf50";
+    p2Bar.style.backgroundColor = p2Pct < 30 ? "#ef4444" : p2Pct < 60 ? "#f59e0b" : "#4caf50";
+
+    document.getElementById("p1HpText").textContent = `${p1State.hp}/${p1State.maxHp}`;
+    document.getElementById("p2HpText").textContent = `${p2State.hp}/${p2State.maxHp}`;
+  }
+
+  function endBattle(result) {
+    const logEl = document.getElementById("battleLog");
+    document.getElementById("attackBtn").disabled = true;
+    if(result === "win") {
+      logEl.innerHTML += `<br><span class="log-effect" style="font-size:13px; color:#4ade80;">🎉 승리했습니다! [${p2State.name}](을)를 쓰러뜨렸습니다!</span>`;
+    } else {
+      logEl.innerHTML += `<br><span class="log-damage" style="font-size:13px;">💀 패배했습니다... 내 [${p1State.name}](이)가 쓰러졌습니다.</span>`;
+    }
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function quitBattle() {
+    document.getElementById("battleScreen").classList.remove("active");
+    document.getElementById("deckMainArea").style.display = "block";
+    if(myPokemonData) renderPokemon(myPokemonData, myPokemonData.koName);
+  }
+
+  function searchPokemon() { const input = document.getElementById("searchInput").value; if (!input) return; fetchPokemon(input); }
+  function loadRandomPokemon() { const randomId = Math.floor(Math.random() * MAX_POKEMON) + 1; fetchPokemon(randomId); }
+  function changeId(delta) { let newId = currentId + delta; if (newId < 1) newId = 1; if (newId > MAX_POKEMON) newId = MAX_POKEMON; fetchPokemon(newId); }
+  function updateNavButtons() { document.getElementById("prevBtn").disabled = currentId <= 1; document.getElementById("nextBtn").disabled = currentId >= MAX_POKEMON; }
+
+  document.getElementById("searchInput").addEventListener("keydown", (e) => { if (e.key === "Enter") searchPokemon(); });
+
+  async function init() {
+    await fetchPokemon(1);      
+    await switchFilter('all'); 
+  }
+  init();
+</script>
+
+</body>
+</html>
